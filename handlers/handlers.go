@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"test.car/definition"
 	"test.car/service"
 )
@@ -23,6 +23,9 @@ UpdateExitingCar - handler обработки запроса на обновле
 Принимает параметр – все данные типа Car из JSON;
 DeleteExitingCar - handler обработки запроса по удаление данных по автомобилю.
 Принимает параметр – VIN автомобиля из URL.
+
+*Для обработки запросов использован фреймворк Gin.
+
 */
 
 type Handler struct {
@@ -33,63 +36,44 @@ func (h *Handler) SetService(Service service.Service) {
 	h.Service = Service
 }
 
-func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+func (h *Handler) Home(c *gin.Context) {}
+
+func (h *Handler) CreateNewCar(c *gin.Context) {
+
+	if c.Request.Method != http.MethodPost {
+		c.Header("Allow", http.MethodPost)
+		c.IndentedJSON(http.StatusNotFound, gin.H{"wrong method type": "only POST allowed"})
 		return
-	}
-
-}
-
-func (h *Handler) CreateNewCar(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-
-		http.Error(w, "Method not allowed", 500)
 	}
 
 	log.Println("CREATE: create function in process")
 
-	decodeQ := json.NewDecoder(r.Body)
-
 	var Car *definition.Car
 
-	if err := decodeQ.Decode(&Car); err != nil {
-		http.Error(w, "Wrong JSON format", 500)
-	}
-
-	if err := h.Service.CreateCar(*Car); err != nil {
-
-		log.Printf("CREATE: couldn't created car - %v", err)
-		resErr := definition.ResultError{
-			Result: "Couldn't created car",
-		}
-		errInJSON, _ := json.Marshal(resErr)
-		fmt.Fprintln(w, string(errInJSON))
+	if err := c.BindJSON(&Car); err != nil {
 		return
 	}
 
-	resOK := definition.ResultOk{
-		Result: fmt.Sprintf("car by VIN : %s successfully created", Car.VIN),
+	if err := h.Service.CreateCar(*Car); err != nil {
+		log.Printf("CREATE: couldn't created car - %v", err)
+		c.IndentedJSON(http.StatusNotModified, gin.H{"couldn't create car": "internal server error"})
+		return
 	}
 
-	okInJSON, _ := json.Marshal(resOK)
-
-	fmt.Fprint(w, string(okInJSON))
+	c.IndentedJSON(http.StatusOK, fmt.Sprintf("Car by VIN %s - successfully created", Car.GetVIN()))
 
 	log.Println("CREATE: update function executing SUCCESSFUL")
 }
 
-func (h *Handler) GetCarByVIN(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetCarByVIN(c *gin.Context) {
 
-	VIN := r.URL.Query().Get("vin")
+	VIN := c.Param("vin")
 
 	log.Printf("SEARCH: looking for car by VIN %s", VIN)
 
 	if VIN == "" {
 		log.Println("Incorrect VIN")
-		http.Error(w, "incorrect VIN format", 400)
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"incorrect data format": "wrong VIN entered"})
 		return
 	}
 
@@ -100,90 +84,68 @@ func (h *Handler) GetCarByVIN(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if car.VIN == "" {
-
 		log.Printf("Couldn't find car by VIN : %s", VIN)
-		resErr := definition.ResultError{
-			Result: fmt.Sprintf("Couldn't find car by VIN : %s", VIN),
-		}
-		errInJSON, _ := json.Marshal(resErr)
-		fmt.Fprintln(w, string(errInJSON))
-		return
+		c.IndentedJSON(http.StatusNotFound, gin.H{"incorrect data format": "searched VIN not found"})
 	}
 
-	carInJSON, _ := json.Marshal(car)
-	fmt.Fprintln(w, string(carInJSON))
+	c.IndentedJSON(http.StatusOK, car)
 
 	log.Println("SEARCH: looking for car by VIN executing SUCCESSFUL")
 }
 
-func (h *Handler) UpdateExitingCar(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateExitingCar(c *gin.Context) {
 
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-
-		http.Error(w, "Method not allowed", 500)
+	if c.Request.Method != http.MethodPut {
+		c.Header("Allow", http.MethodPut)
+		c.IndentedJSON(http.StatusNotFound, gin.H{"wrong method type": "only PUT allowed"})
+		return
 	}
 
 	log.Println("UPDATE: update function in process")
 
-	decodeQ := json.NewDecoder(r.Body)
-
 	var Car *definition.Car
 
-	if err := decodeQ.Decode(&Car); err != nil {
-		http.Error(w, "Wrong JSON format", 500)
+	if err := c.BindJSON(&Car); err != nil {
+		c.IndentedJSON(http.StatusNotModified, gin.H{"couldn't update car": "internal server error"})
+		return
 	}
 
 	if err := h.Service.UpdateCar(*Car); err != nil {
 
 		log.Printf("UPDATE: couldn't updated car - %v", err)
-		resErr := definition.ResultError{
-			Result: "Couldn't updated car",
-		}
-		errInJSON, _ := json.Marshal(resErr)
-		fmt.Fprintln(w, string(errInJSON))
+		c.IndentedJSON(http.StatusNotFound, gin.H{"couldn't updated car": "internal server error"})
 		return
 	}
 
-	resOK := definition.ResultOk{
-		Result: fmt.Sprintf("car by VIN : %s successfully updated", Car.VIN),
-	}
-
-	okInJSON, _ := json.Marshal(resOK)
-
-	fmt.Fprint(w, string(okInJSON))
+	c.IndentedJSON(http.StatusOK, fmt.Sprintf("Car by VIN %s - successfully updated", Car.GetVIN()))
 
 	log.Println("UPDATE: update function executing SUCCESSFUL")
 }
 
-func (h *Handler) DeleteExitingCar(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteExitingCar(c *gin.Context) {
 
-	VIN := r.URL.Query().Get("vin")
+	if c.Request.Method != http.MethodDelete {
+		c.Header("Allow", http.MethodDelete)
+		c.IndentedJSON(http.StatusNotFound, gin.H{"wrong method type": "only DELETE allowed"})
+		return
+	}
+
+	VIN := c.Param("vin")
 
 	if VIN == "" {
 		log.Println("DELETE: Incorrect VIN")
-		http.Error(w, "incorrect VIN format", 400)
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"incorrect data format": "wrong VIN entered"})
 		return
 	}
 
 	if err := h.Service.DeleteCar(VIN); err != nil {
 
 		log.Printf("DELETE: couldn't delete car by VIN : %s", VIN)
-		resErr := definition.ResultError{
-			Result: fmt.Sprintf("Couldn't find car by VIN : %s", VIN),
-		}
-		errInJSON, _ := json.Marshal(resErr)
-		fmt.Fprintln(w, string(errInJSON))
+		c.IndentedJSON(http.StatusNotModified, gin.H{"couldn't delete car": "internal server error"})
 		return
 	}
 
-	resOK := definition.ResultOk{
-		Result: fmt.Sprintf("Car by VIN : %s successfully deleted", VIN),
-	}
-
-	okInJSON, _ := json.Marshal(resOK)
-
-	fmt.Fprint(w, string(okInJSON))
+	c.IndentedJSON(http.StatusOK, fmt.Sprintf("Car by VIN %s - successfully deleted", VIN))
 
 	log.Println("DELETE: deleting car by VIN executing SUCCESSFUL")
 }

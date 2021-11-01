@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"flag"
 	"log"
-	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	_ "github.com/lib/pq"
 	"test.car/handlers"
@@ -44,26 +44,19 @@ func main() {
 
 	callHandler.SetService(service)
 
-	addr := flag.String("addr", ":8080", "Servers address")
+	addr := *flag.String("addr", ":8080", "Servers address")
 	flag.Parse()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", callHandler.Home)
-	mux.HandleFunc("/get", callHandler.GetCarByVIN)
-	mux.HandleFunc("/delete", callHandler.DeleteExitingCar)
-	mux.HandleFunc("/create", callHandler.CreateNewCar)
-	mux.HandleFunc("/update", callHandler.UpdateExitingCar)
+	router := gin.Default()
+	router.GET("/", callHandler.Home)
+	router.GET("/get/:vin", callHandler.GetCarByVIN)
+	router.DELETE("/delete/:vin", callHandler.DeleteExitingCar)
+	router.POST("/create", callHandler.CreateNewCar)
+	router.PUT("/update", callHandler.UpdateExitingCar)
+	router.Run(addr)
 
-	srv := &http.Server{
-		Addr:    *addr,
-		Handler: mux,
-	}
+	log.Printf("Start service at %s", addr)
 
-	log.Printf("Start service at %s", *addr)
-
-	if err = srv.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
 }
 
 func OpenDB(dsn string) (*sql.DB, error) {
