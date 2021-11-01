@@ -1,9 +1,10 @@
 package service
 
 import (
-	"database/sql"
+	"context"
 	"testing"
 
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	"test.car/definition"
 	"test.car/repository"
@@ -11,15 +12,18 @@ import (
 
 func TestCreateCar(t *testing.T) {
 
-	dsn := "user=postgres password=1234 dbname=test sslmode=disable"
-	db, err := sql.Open("postgres", dsn)
+	databaseUrl := "postgres://postgres:1234@localhost:5432/test"
+
+	dbPool, err := pgxpool.Connect(context.Background(), databaseUrl)
 
 	if err != nil {
 		t.Errorf("Error by connecting to DB - %v", err)
 	}
 
+	defer dbPool.Close()
+
 	repo := repository.Repository{
-		DB: db,
+		DB: dbPool,
 	}
 
 	service := Service{
@@ -35,15 +39,18 @@ func TestCreateCar(t *testing.T) {
 
 func TestUpdateCar(t *testing.T) {
 
-	dsn := "user=postgres password=1234 dbname=test sslmode=disable"
-	db, err := sql.Open("postgres", dsn)
+	databaseUrl := "postgres://postgres:1234@localhost:5432/test"
+
+	dbPool, err := pgxpool.Connect(context.Background(), databaseUrl)
 
 	if err != nil {
 		t.Errorf("Error by connecting to DB - %v", err)
 	}
 
+	defer dbPool.Close()
+
 	repo := repository.Repository{
-		DB: db,
+		DB: dbPool,
 	}
 
 	service := Service{

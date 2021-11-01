@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"log"
 
@@ -21,15 +20,10 @@ import (
 
 type Service struct {
 	CarRepo repository.Repository
-	Ctx     context.Context
 }
 
 func (s *Service) SetCarRepo(CarRepo repository.Repository) {
 	s.CarRepo = CarRepo
-}
-
-func (s *Service) SetContext(Ctx context.Context) {
-	s.Ctx = Ctx
 }
 
 func (s *Service) CreateCar(car definition.Car) error {
@@ -42,7 +36,7 @@ func (s *Service) CreateCar(car definition.Car) error {
 
 	switch car.GetCarStatus() {
 	case "В пути", "На складе", "Продан", "Снят с продажи":
-		if err := s.CarRepo.CreateCar(s.Ctx, car); err != nil {
+		if err := s.CarRepo.CreateCar(car); err != nil {
 			log.Printf("ERROR occurated by creating car. Reason is %v", err)
 			return err
 		}
@@ -77,7 +71,7 @@ func (s *Service) UpdateCar(car definition.Car) error {
 
 	switch car.GetCarStatus() {
 	case "В пути", "На складе", "Продан", "Снят с продажи":
-		if err := s.CarRepo.UpdateCar(s.Ctx, car); err != nil {
+		if err := s.CarRepo.UpdateCar(car); err != nil {
 			log.Printf("ERROR occurated by updating car. Reason is %v", err)
 			return err
 		}
@@ -94,7 +88,7 @@ func (s *Service) DeleteCar(VIN string) error {
 
 	log.Printf("Started deleting car by VIN : %s started", VIN)
 
-	if err := s.CarRepo.DeleteCar(s.Ctx, VIN); err != nil {
+	if err := s.CarRepo.DeleteCar(VIN); err != nil {
 		log.Printf("ERROR occurated by deleting car. Reason is %v", err)
 		return err
 	}

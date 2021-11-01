@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	"test.car/handlers"
 	"test.car/repository"
@@ -16,13 +17,17 @@ import (
 
 func main() {
 
-	dsn := flag.String("dsn", "user=postgres password=1234 dbname=test sslmode=disable", "datacars")
+	databaseUrl := "postgres://postgres:1234@localhost:5432/test"
 
-	db, err := OpenDB(*dsn)
+	//db, err := OpenDB(*dsn)
+
+	dbPool, err := pgxpool.Connect(context.Background(), databaseUrl)
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	defer dbPool.Close()
 
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -30,15 +35,17 @@ func main() {
 		DB:       0,
 	})
 
+	defer client.Close()
+
 	repository := repository.Repository{
-		DB:    db,
-		Redis: client,
+		DB:      dbPool,
+		Redis:   client,
+		Context: context.Background(),
 	}
 
 	service := service.Service{}
 
 	service.SetCarRepo(repository)
-	service.SetContext(context.Background())
 
 	callHandler := handlers.Handler{}
 

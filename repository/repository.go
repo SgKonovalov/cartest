@@ -2,10 +2,11 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/go-redis/redis"
 	"test.car/definition"
@@ -25,15 +26,20 @@ import (
 */
 
 type Repository struct {
-	DB    *sql.DB
-	Redis *redis.Client
+	DB      *pgxpool.Pool
+	Redis   *redis.Client
+	Context context.Context
 }
 
-func (r *Repository) CreateCar(ctx context.Context, car definition.Car) error {
+func (r *Repository) SetContext(Context context.Context) {
+	r.Context = Context
+}
+
+func (r *Repository) CreateCar(car definition.Car) error {
 
 	sql := `INSERT INTO datacars (vin, brand, model, price, carstatus, odometer) VALUES ($1, $2, $3, $4, $5, $6)`
 
-	_, err := r.DB.ExecContext(ctx, sql, car.GetVIN(), car.GetBrand(), car.GetModel(), car.GetPrice(), car.GetCarStatus(), car.GetOdometer())
+	_, err := r.DB.Exec(r.Context, sql, car.GetVIN(), car.GetBrand(), car.GetModel(), car.GetPrice(), car.GetCarStatus(), car.GetOdometer())
 
 	if err != nil {
 		return err
@@ -60,7 +66,7 @@ func (r *Repository) GetCar(VIN string) (car definition.Car, err error) {
 
 		sql := `SELECT vin, brand, model, price, carstatus, odometer from datacars WHERE vin = $1`
 
-		allCars, err := r.DB.Query(sql, VIN)
+		allCars, err := r.DB.Query(r.Context, sql, VIN)
 
 		if err != nil {
 			log.Println(err)
@@ -85,11 +91,11 @@ func (r *Repository) GetCar(VIN string) (car definition.Car, err error) {
 	return car, nil
 }
 
-func (r *Repository) UpdateCar(ctx context.Context, car definition.Car) error {
+func (r *Repository) UpdateCar(car definition.Car) error {
 
 	sql := `UPDATE datacars SET brand = $1, model = $2, price = $3, carstatus = $4, odometer = $5 WHERE vin = $6`
 
-	_, err := r.DB.ExecContext(ctx, sql, car.GetBrand(), car.GetModel(), car.GetPrice(), car.GetCarStatus(), car.GetOdometer(), car.GetVIN())
+	_, err := r.DB.Exec(r.Context, sql, car.GetBrand(), car.GetModel(), car.GetPrice(), car.GetCarStatus(), car.GetOdometer(), car.GetVIN())
 
 	if err != nil {
 		return err
@@ -106,10 +112,10 @@ func (r *Repository) UpdateCar(ctx context.Context, car definition.Car) error {
 	return nil
 }
 
-func (r *Repository) DeleteCar(ctx context.Context, VIN string) error {
+func (r *Repository) DeleteCar(VIN string) error {
 
 	sql := `DELETE FROM datacars WHERE vin = $1`
-	_, err := r.DB.ExecContext(ctx, sql, VIN)
+	_, err := r.DB.Exec(r.Context, sql, VIN)
 
 	if err != nil {
 		return err
