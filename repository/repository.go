@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 
@@ -20,9 +21,13 @@ import (
 2) GetCar – принимая в качестве аргумента VIN осуществляет поиск в БД Redis нужного автомобиля по его VIN;
 Все автомобили из реляционной базы загружаются в Redis с помощью отдельной job, описанной в loadallcars;
 3) UpdateCar - принимая в качестве аргумента объект типа Car обновляет данные по существующему в БД автомобилю.
+В случае если автомобиль для обновления не найден - выходим из функции с ошибкой.
 ВАЖНО: при обновлении данных по автомобилю, данные записываются в Redis;
 4) DeleteCar - принимая в качестве аргумента VIN удаляет данные об автомобиле из БД.
+В случае если автомобиль для обновления не найден - выходим из функции с ошибкой.
 ВАЖНО: при удалении данных по автомобилю, данные удаляются и в Redis.
+
+*Для работы с БД использован драйвер pgx.
 */
 
 type Repository struct {
@@ -95,10 +100,14 @@ func (r *Repository) UpdateCar(car definition.Car) error {
 
 	sql := `UPDATE datacars SET brand = $1, model = $2, price = $3, carstatus = $4, odometer = $5 WHERE vin = $6`
 
-	_, err := r.DB.Exec(r.Context, sql, car.GetBrand(), car.GetModel(), car.GetPrice(), car.GetCarStatus(), car.GetOdometer(), car.GetVIN())
+	result, err := r.DB.Exec(r.Context, sql, car.GetBrand(), car.GetModel(), car.GetPrice(), car.GetCarStatus(), car.GetOdometer(), car.GetVIN())
 
 	if err != nil {
 		return err
+	}
+
+	if result.RowsAffected() != 1 {
+		return errors.New("not finded car for update")
 	}
 
 	carInJSON, err := json.Marshal(car)
@@ -115,10 +124,14 @@ func (r *Repository) UpdateCar(car definition.Car) error {
 func (r *Repository) DeleteCar(VIN string) error {
 
 	sql := `DELETE FROM datacars WHERE vin = $1`
-	_, err := r.DB.Exec(r.Context, sql, VIN)
+	result, err := r.DB.Exec(r.Context, sql, VIN)
 
 	if err != nil {
 		return err
+	}
+
+	if result.RowsAffected() != 1 {
+		return errors.New("not finded car for delete")
 	}
 
 	if err = r.Redis.Del(fmt.Sprint("car:", VIN)).Err(); err != nil {

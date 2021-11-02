@@ -10,6 +10,11 @@ import (
 	"test.car/repository"
 )
 
+/*
+Тестирование в пакете service осуществляется на предмет проверки работоспособности
+дополняющего функционала из пакета service.
+*/
+
 func TestCreateCar(t *testing.T) {
 
 	databaseUrl := "postgres://postgres:1234@localhost:5432/test"

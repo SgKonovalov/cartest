@@ -10,6 +10,11 @@ import (
 	"test.car/definition"
 )
 
+/*
+Тестирование в пакете repository осуществляется на предмет проверки работоспособности
+основного функционала, связанного с выполнением запросов в БД.
+*/
+
 func TestCreateCar(t *testing.T) {
 
 	databaseUrl := "postgres://postgres:1234@localhost:5432/test"

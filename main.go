@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"log"
 
@@ -18,8 +17,6 @@ import (
 func main() {
 
 	databaseUrl := "postgres://postgres:1234@localhost:5432/test"
-
-	//db, err := OpenDB(*dsn)
 
 	dbPool, err := pgxpool.Connect(context.Background(), databaseUrl)
 
@@ -63,16 +60,4 @@ func main() {
 	router.Run(addr)
 
 	log.Printf("Start service at %s", addr)
-
-}
-
-func OpenDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, nil
 }
