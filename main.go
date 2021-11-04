@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
@@ -38,6 +39,7 @@ func main() {
 		DB:      dbPool,
 		Redis:   client,
 		Context: context.Background(),
+		WG:      sync.WaitGroup{},
 	}
 
 	service := service.Service{}
@@ -52,12 +54,16 @@ func main() {
 	flag.Parse()
 
 	router := gin.Default()
+
 	router.GET("/", callHandler.Home)
 	router.GET("/get/:vin", callHandler.GetCarByVIN)
 	router.DELETE("/delete/:vin", callHandler.DeleteExitingCar)
 	router.POST("/create", callHandler.CreateNewCar)
 	router.PUT("/update", callHandler.UpdateExitingCar)
-	router.Run(addr)
+
+	if err = router.Run(addr); err != nil {
+		log.Fatal(err)
+	}
 
 	log.Printf("Start service at %s", addr)
 }

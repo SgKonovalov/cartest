@@ -139,13 +139,10 @@ func (h *Handler) DeleteExitingCar(c *gin.Context) {
 	}
 
 	if err := h.Service.DeleteCar(VIN); err != nil {
-
 		log.Printf("DELETE: couldn't delete car by VIN : %s", VIN)
 		c.IndentedJSON(http.StatusNotModified, gin.H{"couldn't delete car": "internal server error"})
 		return
 	}
-
 	c.IndentedJSON(http.StatusOK, fmt.Sprintf("Car by VIN %s - successfully deleted", VIN))
-
 	log.Println("DELETE: deleting car by VIN executing SUCCESSFUL")
 }
